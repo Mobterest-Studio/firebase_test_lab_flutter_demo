@@ -1,4 +1,4 @@
-# firebase_test_lab_flutter_demo
+# Firebase Test Lab CI/CD Demo - Flutter Counter App
 
 A new Flutter project.
 
