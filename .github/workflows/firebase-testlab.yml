@@ -1,0 +1,171 @@
+name: Firebase Test Lab CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Run Tests on Firebase Test Lab
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Checkout code
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Setup Java (required for Android builds)
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
+
+      # Step 3: Setup Flutter
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+          cache: true
+
+      # Step 4: Verify Flutter installation
+      - name: 🔍 Verify Flutter
+        run: |
+          flutter --version
+          flutter doctor -v
+
+      # Step 5: Install dependencies
+      - name: 📦 Install dependencies
+        run: flutter pub get
+
+      # Step 6: Analyze code
+      - name: 🔍 Analyze code
+        run: flutter analyze
+
+      # Step 7: Format check
+      - name: 📝 Check formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      # Step 8: Run unit tests
+      - name: 🧪 Run unit tests
+        run: flutter test --coverage
+
+      # Step 9: Upload coverage to Codecov (optional)
+      - name: 📊 Upload coverage
+        uses: codecov/codecov-action@v4
+        if: success()
+        with:
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
+
+      # Step 10: Build app APK
+      - name: 🔨 Build app APK
+        run: flutter build apk --debug
+
+      # Step 11: Build instrumentation test APK
+      - name: 🔧 Build test APK
+        run: |
+          cd android
+          ./gradlew app:assembleAndroidTest
+          ./gradlew app:assembleDebug -Ptarget=../integration_test/app_test.dart
+          cd ..
+
+      # Step 12: Setup Google Cloud SDK
+      - name: ☁️ Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      # Step 13: Authenticate with Google Cloud
+      - name: 🔐 Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      # Step 14: Run tests on Firebase Test Lab
+      - name: 🔥 Run tests on Firebase Test Lab
+        run: |
+          gcloud firebase test android run \
+            --type instrumentation \
+            --app build/app/outputs/apk/debug/app-debug.apk \
+            --test build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk \
+            --device model=flame,version=29,locale=en,orientation=portrait \
+            --device model=oriole,version=31,locale=en,orientation=portrait \
+            --timeout 10m \
+            --results-bucket=gs://${{ secrets.GCP_PROJECT_ID }}-test-results \
+            --results-dir=test-results-${{ github.run_number }}-${{ github.sha }} \
+            --environment-variables coverage=true,coverageFile=/sdcard/coverage.ec \
+            --directories-to-pull /sdcard \
+            --project ${{ secrets.GCP_PROJECT_ID }}
+
+      # Step 15: Upload APKs as artifacts
+      - name: 📤 Upload APKs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: apk-files
+          path: |
+            build/app/outputs/apk/debug/app-debug.apk
+            build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          retention-days: 30
+
+      # Step 16: Upload test results
+      - name: 📊 Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            test-results/
+          retention-days: 30
+
+      # Step 17: Comment PR with test results (optional)
+      - name: 💬 Comment PR
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ Firebase Test Lab tests completed! Check the [Actions tab](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for detailed results.'
+            })
+
+  # Optional: Matrix testing for multiple Flutter versions
+  matrix-test:
+    name: Test Multiple Flutter Versions
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    strategy:
+      matrix:
+        flutter-version: ['3.22.0', '3.24.0']
+      fail-fast: false
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: 🐦 Setup Flutter ${{ matrix.flutter-version }}
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ matrix.flutter-version }}
+          channel: 'stable'
+
+      - name: 📦 Install dependencies
+        run: flutter pub get
+
+      - name: 🧪 Run tests
+        run: flutter test

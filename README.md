@@ -1,16 +1,44 @@
 # Firebase Test Lab CI/CD Demo - Flutter Counter App
 
-A new Flutter project.
+Demonstration of integrating **Firebase Test Lab** with **GitHub Actions CI/CD** for Flutter applications.
 
-## Getting Started
+ 
 
-This project is a starting point for a Flutter application.
+## 🏗️ Architecture
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    GitHub Repository                         │
+└──────────────────┬──────────────────────────────────────────┘
+                   │
+                   │ Push/PR
+                   ▼
+┌─────────────────────────────────────────────────────────────┐
+│              GitHub Actions Workflow                         │
+│  ┌────────────┐  ┌────────────┐  ┌─────────────────────┐   │
+│  │   Setup    │→ │   Build    │→ │   Run Unit Tests    │   │
+│  └────────────┘  └────────────┘  └─────────────────────┘   │
+│                                                               │
+│  ┌──────────────────┐  ┌─────────────────────────────────┐ │
+│  │ Build Test APKs  │→ │  Upload to Firebase Test Lab   │ │
+│  └──────────────────┘  └─────────────────────────────────┘ │
+└──────────────────┬──────────────────────────────────────────┘
+                   │
+                   │ Test Execution
+                   ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Firebase Test Lab                               │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│  │ Pixel 4  │  │ Pixel 6  │  │ Galaxy   │  │ More...  │   │
+│  │ API 29   │  │ API 31   │  │ S21      │  │          │   │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
+└──────────────────┬──────────────────────────────────────────┘
+                   │
+                   │ Results & Artifacts
+                   ▼
+┌─────────────────────────────────────────────────────────────┐
+│                Test Results Dashboard                        │
+│  • Test logs        • Screenshots      • Video recordings   │
+│  • Performance data • Crash reports    • Coverage reports   │
+└─────────────────────────────────────────────────────────────┘
+```
