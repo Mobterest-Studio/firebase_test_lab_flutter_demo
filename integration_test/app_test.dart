@@ -34,7 +34,7 @@ void main() {
 
       await tester.tap(decrementButton);
       await tester.pumpAndSettle();
-      expect(find.text('1'), findsOneWidget);
+      expect(find.text('1'), findsOneWidget); 
 
       // Test reset functionality
       final resetButton = find.byKey(const Key('reset_button'));
